@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -137,7 +138,12 @@ func getImage(query string) ([]byte, error) {
 		return nil, fmt.Errorf("decode resp %w", err)
 	}
 
-	req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s&fm=png", random.URLs.Raw), http.NoBody)
+	highestRes, err := highestMonitorResolution()
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s&fm=jpg&q=100&cs=srgb&w=%d&h=%d&fit=crop", random.URLs.Raw, highestRes.Width, highestRes.Height), http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("create new http request %w", err)
 	}
@@ -179,4 +185,58 @@ func setBackground(path string) error {
 	}
 
 	return nil
+}
+
+type Resolution struct {
+	Width  int
+	Height int
+}
+
+func highestMonitorResolution() (Resolution, error) {
+	cmd := exec.Command("xrandr", "--listmonitors")
+	out, err := cmd.Output()
+	if err != nil {
+		return Resolution{}, fmt.Errorf("xrandr failed %w", err)
+	}
+
+	lines := strings.Split(string(out), "\n")
+
+	best := Resolution{}
+	bestArea := 0
+
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+
+		resPart := fields[2]
+		resPart = strings.Split(resPart, "+")[0]
+
+		parts := strings.Split(resPart, "x")
+		if len(parts) != 2 {
+			continue
+		}
+
+		wStr := strings.Split(parts[0], "/")[0]
+		hStr := strings.Split(parts[1], "/")[0]
+
+		w, err1 := strconv.Atoi(wStr)
+		h, err2 := strconv.Atoi(hStr)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		area := w * h
+		if area > bestArea {
+			bestArea = area
+			best = Resolution{Width: w, Height: h}
+		}
+	}
+
+	if bestArea == 0 {
+		return Resolution{}, fmt.Errorf("No monitors detected")
+	}
+
+	return best, nil
 }

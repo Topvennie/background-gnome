@@ -2,6 +2,8 @@
 
 This will get a random image from Unsplash and set it as background.
 
+It's only tested on Ubuntu 24.04 with X11.
+
 You can configure the queries used to fetch an image in the [topic file](./topic.go).
 
 You can use the script by:
@@ -13,4 +15,4 @@ You can use the script by:
    - `old`: The path to move previously generated images to. If it is set to `""` then they will be deleted.
 3. Configure the topics.
 4. Build `go build .`.
-5. Run it manually, as a startup script or as a cronjob.
+5. Run it manually, as a startup script or as a systemctl timer.
