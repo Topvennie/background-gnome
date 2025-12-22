@@ -45,14 +45,13 @@ func main() {
 		return
 	}
 
-	chosenQuery := chosenTopic.queries[rand.IntN(len(chosenTopic.queries))]
-
-	fmt.Printf("Chosen query: %s\n", chosenQuery)
-
 	// Get image
 	var data []byte
 
 	for {
+		chosenQuery := chosenTopic.queries[rand.IntN(len(chosenTopic.queries))]
+		fmt.Printf("Chosen query: %s\n", chosenQuery)
+
 		var err error
 
 		fmt.Println("Getting image")
