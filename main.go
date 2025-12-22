@@ -14,12 +14,6 @@ import (
 	"time"
 )
 
-const (
-	accessKey = ""
-	path      = ""
-	old       = ""
-)
-
 func main() {
 	// Choose a topic
 	totalWeight := 0
@@ -56,17 +50,36 @@ func main() {
 	fmt.Printf("Chosen query: %s\n", chosenQuery)
 
 	// Get image
-	fmt.Println("Getting image")
-	data, err := getImage(chosenQuery)
-	if err != nil {
-		fmt.Printf("Error getting image %v", err)
-		return
+	var data []byte
+
+	for {
+		var err error
+
+		fmt.Println("Getting image")
+		data, err = getImage(chosenQuery)
+		if err != nil {
+			fmt.Printf("Error getting image %v\n", err)
+			return
+		}
+
+		fmt.Println("Checking darkness")
+		dark, err := isDark(data)
+		if err != nil {
+			fmt.Printf("Error checking image darkness %v\n", err)
+			return
+		}
+
+		if dark {
+			break
+		}
+
+		fmt.Println("Image was not dark enough, getting another one...")
 	}
 
 	// Move / delete old image
-	entries, err := os.ReadDir(path)
+	entries, err := os.ReadDir(c.dirPath)
 	if err != nil {
-		fmt.Printf("Error reading path %s directory %v\n", path, err)
+		fmt.Printf("Error reading path %s directory %v\n", c.dirPath, err)
 		return
 	}
 
@@ -75,28 +88,28 @@ func main() {
 			continue
 		}
 
-		if old == "" {
-			if err := os.Remove(path + entry.Name()); err != nil {
+		if c.dirOld == "" {
+			if err := os.Remove(c.dirPath + entry.Name()); err != nil {
 				fmt.Printf("Error deleting old file %s %v\n", entry.Name(), err)
 				return
 			}
 		} else {
-			if err := os.Rename(path+entry.Name(), old+entry.Name()); err != nil {
-				fmt.Printf("Error moving old file %s to %s %v\n", entry.Name(), old+entry.Name(), err)
+			if err := os.Rename(c.dirPath+entry.Name(), c.dirOld+entry.Name()); err != nil {
+				fmt.Printf("Error moving old file %s to %s %v\n", entry.Name(), c.dirOld+entry.Name(), err)
 				return
 			}
 		}
 	}
 
 	// Save image
-	fileName := fmt.Sprintf("%s_%s.png", strings.ToLower(strings.ReplaceAll(chosenTopic.name, " ", "_")), time.Now().Format("02_01_06_15_04_05"))
+	fileName := fmt.Sprintf("%s_%s.jpg", time.Now().Format("02_01_06_15_04_05"), strings.ToLower(strings.ReplaceAll(chosenTopic.name, " ", "_")))
 
-	if err := os.WriteFile(path+fileName, data, os.ModePerm); err != nil {
+	if err := os.WriteFile(c.dirPath+fileName, data, os.ModePerm); err != nil {
 		fmt.Printf("Error writing image to disk %v\n", err)
 		return
 	}
 
-	if err := setBackground(path + fileName); err != nil {
+	if err := setBackground(c.dirPath + fileName); err != nil {
 		fmt.Printf("Error setting background %v\n", err)
 		return
 	}
@@ -122,7 +135,7 @@ func getImage(query string) ([]byte, error) {
 		return nil, fmt.Errorf("create new http request %w", err)
 	}
 	req.Header.Set("Accept-Version", "v1")
-	req.Header.Set("Authorization", "Client-ID "+accessKey)
+	req.Header.Set("Authorization", "Client-ID "+c.apiAccessKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -148,7 +161,7 @@ func getImage(query string) ([]byte, error) {
 		return nil, fmt.Errorf("create new http request %w", err)
 	}
 	req.Header.Set("Accept-Version", "v1")
-	req.Header.Set("Authorization", "Client-ID "+accessKey)
+	req.Header.Set("Authorization", "Client-ID "+c.apiAccessKey)
 
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
@@ -235,7 +248,7 @@ func highestMonitorResolution() (Resolution, error) {
 	}
 
 	if bestArea == 0 {
-		return Resolution{}, fmt.Errorf("No monitors detected")
+		return Resolution{}, fmt.Errorf("no monitors detected")
 	}
 
 	return best, nil
