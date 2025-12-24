@@ -17,6 +17,8 @@ func main() {
 	if *fSave {
 		if err := save(); err != nil {
 			fmt.Printf("Error saving image %v\n", err)
+		} else {
+			fmt.Println("Background saved")
 		}
 
 		return
