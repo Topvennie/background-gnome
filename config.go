@@ -6,6 +6,7 @@ type config struct {
 	// Directory
 	dirPath string
 	dirOld  string
+	dirSave string
 	// Image darknes detection
 	darkEnabled bool
 	darkSize    int
@@ -17,6 +18,7 @@ var c config = config{
 	apiAccessKey: "",
 	dirPath:      "",
 	dirOld:       "",
+	dirSave:      "",
 	darkEnabled:  true,
 	darkSize:     512,
 	darkMedian:   0.35,

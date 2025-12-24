@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -9,9 +11,53 @@ import (
 )
 
 func main() {
-	if len(topics) == 0 {
-		fmt.Println("No topics configured")
+	fSave := flag.Bool("save", false, "Save the current image")
+	flag.Parse()
+
+	if *fSave {
+		if err := save(); err != nil {
+			fmt.Printf("Error saving image %v\n", err)
+		}
+
 		return
+	}
+
+	if err := update(); err != nil {
+		fmt.Printf("Error updating background %v\n", err)
+	}
+}
+
+func save() error {
+	if c.dirSave == "" {
+		return errors.New("no save directory configured")
+	}
+
+	entries, err := os.ReadDir(c.dirPath)
+	if err != nil {
+		return fmt.Errorf("reading path %s directory %v", c.dirPath, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		f, err := os.ReadFile(c.dirPath + entry.Name())
+		if err != nil {
+			return fmt.Errorf("read file %s %v", entry.Name(), err)
+		}
+
+		if err := os.WriteFile(c.dirSave+entry.Name(), f, os.ModePerm); err != nil {
+			return fmt.Errorf("write file %s %v", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+func update() error {
+	if len(topics) == 0 {
+		return errors.New("no topics configured")
 	}
 
 	// Choose a topic
@@ -32,11 +78,10 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Chosen topic: %s\n", chosenTopic.name)
+	fmt.Printf("Chosen topic %s\n", chosenTopic.name)
 
 	if len(chosenTopic.queries) == 0 {
-		fmt.Println("Topic has no queries")
-		return
+		return errors.New("topic has no queries")
 	}
 
 	// Get image
@@ -44,22 +89,20 @@ func main() {
 
 	for {
 		chosenQuery := chosenTopic.queries[rand.IntN(len(chosenTopic.queries))]
-		fmt.Printf("Chosen query: %s\n", chosenQuery)
+		fmt.Printf("Chosen query %s\n", chosenQuery)
 
 		var err error
 
 		fmt.Println("Getting image")
 		data, err = getImage(chosenQuery)
 		if err != nil {
-			fmt.Printf("Error getting image %v\n", err)
-			return
+			return fmt.Errorf("getting image %v", err)
 		}
 
 		fmt.Println("Checking darkness")
 		dark, err := isDark(data)
 		if err != nil {
-			fmt.Printf("Error checking image darkness %v\n", err)
-			return
+			return fmt.Errorf("checking image darkness %v", err)
 		}
 
 		if dark {
@@ -72,8 +115,7 @@ func main() {
 	// Move / delete old image
 	entries, err := os.ReadDir(c.dirPath)
 	if err != nil {
-		fmt.Printf("Error reading path %s directory %v\n", c.dirPath, err)
-		return
+		return fmt.Errorf("reading path %s directory %v", c.dirPath, err)
 	}
 
 	for _, entry := range entries {
@@ -83,13 +125,11 @@ func main() {
 
 		if c.dirOld == "" {
 			if err := os.Remove(c.dirPath + entry.Name()); err != nil {
-				fmt.Printf("Error deleting old file %s %v\n", entry.Name(), err)
-				return
+				return fmt.Errorf("deleting old file %s %v", entry.Name(), err)
 			}
 		} else {
 			if err := os.Rename(c.dirPath+entry.Name(), c.dirOld+entry.Name()); err != nil {
-				fmt.Printf("Error moving old file %s to %s %v\n", entry.Name(), c.dirOld+entry.Name(), err)
-				return
+				return fmt.Errorf("moving old file %s to %s %v", entry.Name(), c.dirOld+entry.Name(), err)
 			}
 		}
 	}
@@ -98,14 +138,14 @@ func main() {
 	fileName := fmt.Sprintf("%s_%s.jpg", time.Now().Format("02_01_06_15_04_05"), strings.ToLower(strings.ReplaceAll(chosenTopic.name, " ", "_")))
 
 	if err := os.WriteFile(c.dirPath+fileName, data, os.ModePerm); err != nil {
-		fmt.Printf("Error writing image to disk %v\n", err)
-		return
+		return fmt.Errorf("writing image to disk %v", err)
 	}
 
 	if err := setBackground(c.dirPath + fileName); err != nil {
-		fmt.Printf("Error setting background %v\n", err)
-		return
+		return fmt.Errorf("setting background %v", err)
 	}
 
 	fmt.Println("Background updated")
+
+	return nil
 }
